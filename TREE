@@ -1,0 +1,13 @@
+
+dfs.
+	peer.
+		consistent-hash
+		data-hash
+		local-data-hash
+		persistent-data-hash
+	client.
+		storage-layer
+		reliability-layer
+	common.
+		rpc-proxy
+		transfer

@@ -1,0 +1,9 @@
+.*.d
+config.log
+configure
+aclocal.m4
+config.cache
+config.status
+Makefile
+config.h.in
+config.h

@@ -1,0 +1,52 @@
+#!/bin/sh
+exec rep "$0" "$@"
+!#
+
+(structure ()
+
+    (open rep
+	  rep.system
+	  rep.io.files
+	  rep.net.rpc
+	  dfs.peer.proxy-server
+	  dfs.common.rpc-proxy)
+
+  (when (get-command-line-option "--help")
+    (write standard-error "\
+usage: dfs-node OPTIONS...
+
+where OPTIONS are any of:
+
+    --sibling RPC-ID
+    --verbose\n\n")
+    (throw 'quit 0))
+
+  (define sibling (let ((id (or (get-command-line-option "--sibling" t)
+				(getenv "SERVER_RPC_ID"))))
+		    (and id (rpc-id->hash-object id))))
+
+  ;; listen for rpc connections
+  (rpc-create-server)
+
+  ;; Create our object
+  (define self (make-proxy-server sibling))
+
+  ;; Make it's rpc servant
+  (define servant-id (hash-object->rpc-id self))
+
+  ;; Print our rpc id
+  (format standard-output "%s\n"
+	  (if (symbolp servant-id)
+	      (servant-id->global-id servant-id)
+	    ;; assume already global
+	    servant-id))
+  (flush-file standard-output)
+
+  ;; And make sure we clean up on exit when possible
+;  (add-hook 'before-exit-hook
+;	    (lambda ()
+;	      (self 'leave)))
+
+  ;; Then hand off to the event loop
+  (setq interrupt-mode 'exit)
+  (recursive-edit))

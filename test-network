@@ -1,0 +1,17 @@
+#!/bin/sh
+
+dir="Nodes"
+count=4
+
+[ -d $dir ] || mkdir $dir
+
+./dfs-node --root=$dir/0 $* >$dir/id-0 &
+
+i=1
+while [ $i -lt $count ]; do
+  sleep 1
+  ./dfs-node --root=$dir/$i --sibling=`cat $dir/id-0` $* >$dir/id-$i &
+  i=`expr $i \+ 1`
+done
+
+wait

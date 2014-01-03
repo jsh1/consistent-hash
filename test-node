@@ -1,0 +1,61 @@
+#!/bin/sh
+exec rep "$0" "$@"
+!#
+
+(define-structure test-node ()
+
+    (open rep
+	  rep.system
+	  rep.io.timers
+	  rep.net.rpc
+	  dfs.peer.local-data-hash
+	  dfs.common.rpc-proxy)
+
+  (define address (let ((address (get-command-line-option "--address" t)))
+		    (if address
+			(string->number address)
+		      (error "You must specify the --address option"))))
+
+  (define sibling (let ((id (or (get-command-line-option "--sibling" t)
+				(getenv "SERVER_RPC_ID"))))
+		    (and id (rpc-id->hash-object id))))
+
+  (define update-interval (let ((tem (get-command-line-option "--update" t)))
+			    (or (and tem (string->number tem)) 60)))
+
+  ;; listen for rpc connections
+  (rpc-create-server)
+
+  ;; Create our object
+  (define self (make-local-hash-node #:address address))
+
+  ;; Make it's rpc servant
+  (define servant-id (hash-object->rpc-id self))
+
+  (when (get-command-line-option "--verbose")
+    (self '-set-debugging t))
+
+  ;; Print our rpc id
+  (format standard-output "%s\n"
+	  (if (symbolp servant-id)
+	      (servant-id->global-id servant-id)
+	    ;; assume already global
+	    servant-id))
+
+  ;; Connect to the network (or start a new one if SIBLING is false)
+  (self 'join sibling)
+
+  ;; Arrange for the periodic operations to happen once a minute
+  (make-timer (lambda (timer)
+		(self 'periodically)
+		(set-timer timer))
+	      update-interval)
+
+  ;; And make sure we clean up on exit when possible
+  (add-hook 'before-exit-hook
+	    (lambda ()
+	      (self 'leave)))
+
+  ;; Then hand off to the event loop
+  (setq interrupt-mode 'exit)
+  (recursive-edit))

@@ -1,0 +1,96 @@
+#!/bin/sh
+exec rep "$0" "$@"
+!#
+
+(structure ()
+
+    (open rep
+	  rep.system
+	  rep.io.timers
+	  rep.io.files
+	  rep.net.rpc
+	  dfs.peer.persistent-data-hash
+	  dfs.common.rpc-proxy)
+
+  (when (get-command-line-option "--help")
+    (write standard-error "\
+usage: dfs-node OPTIONS...
+
+where OPTIONS are any of:
+
+    --address NUMERIC-ADDRESS
+    --root DIRECTORY
+    --sibling RPC-ID
+    --size MEGABYTES-OF-STORAGE
+
+    --update SECONDS
+    --verbose\n\n")
+    (throw 'quit 0))
+
+  (random t)
+
+  (define address (let ((address (get-command-line-option "--address" t)))
+		    (if address
+			(string->number address)
+		      (random 65536))))
+
+  (define root (or (get-command-line-option "--root" t)
+		   (error "You must specify the --root option")))
+
+  (define sibling (let ((id (or (get-command-line-option "--sibling" t)
+				(getenv "SERVER_RPC_ID"))))
+		    (and id (rpc-id->hash-object id))))
+
+  (define size (let ((size (get-command-line-option "--size" t)))
+		 (if size
+		     (* (string->number size) 1024 1024)
+		   ;; default to 100M
+		   (* 100 1024 1024))))
+
+  (define update-interval (let ((tem (get-command-line-option "--update" t)))
+			    (or (and tem (string->number tem)) 60)))
+
+  ;; listen for rpc connections
+  (rpc-create-server)
+
+  (if (file-exists-p root)
+      (or (file-directory-p root)
+	  (error "Server root isn't a directory: %s" root))
+    (make-directory root))
+
+  ;; Create our object
+  (define self (make-persistent-hash-node #:address address
+					  #:directory root
+					  #:target-size size))
+
+  ;; Make it's rpc servant
+  (define servant-id (hash-object->rpc-id self))
+
+  (when (get-command-line-option "--verbose")
+    (self '-set-debugging t))
+
+  ;; Print our rpc id
+  (format standard-output "%s\n"
+	  (if (symbolp servant-id)
+	      (servant-id->global-id servant-id)
+	    ;; assume already global
+	    servant-id))
+  (flush-file standard-output)
+
+  ;; Connect to the network (or start a new one if SIBLING is false)
+  (self 'join sibling)
+
+  ;; Arrange for the periodic operations to happen once a minute
+  (make-timer (lambda (timer)
+		(self 'periodically)
+		(set-timer timer))
+	      update-interval)
+
+  ;; And make sure we clean up on exit when possible
+  (add-hook 'before-exit-hook
+	    (lambda ()
+	      (self 'leave)))
+
+  ;; Then hand off to the event loop
+  (setq interrupt-mode 'exit)
+  (recursive-edit))

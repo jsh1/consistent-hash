@@ -1,0 +1,90 @@
+
+Classes and Methods
+===================
+
+Methods whose names begin with `-' are internal and shouldn't be called
+by clients. Methods marked with a `*' represent rpc calls made between
+nodes over the network.
+
+consistent-hash
+
+	(address) -> ADDRESS						*
+
+	(successor ADDRESS) -> NODE
+	(predecessor ADDRESS) -> NODE					*
+
+	(responsible-for? ADDRESS) -> BOOLEAN
+
+	(join SIBLING-NODE) -> BOOLEAN
+	(leave) -> BOOLEAN
+	(joined?) -> BOOLEAN						*
+
+	(broadcast METHOD ARGS...)
+	(-broadcast-stage K BOUNDARY METHOD ARGS...)			*
+
+	(periodically)
+
+	(-node-successor) -> NODE					*
+	(-node-predecessor) -> NODE
+	(-closest-preceding-node ADDRESS) -> NODE			*
+
+	(-stabilize)
+	(-notify-predecessor NODE)					*
+	(-notify-successor NODE)					*
+	(-fix-fingers)
+
+	(-print-fingers)
+	(-debug)
+	(-set-debugging STATUS)
+
+	Abstract:
+
+	(successor-changed SUCCESSOR-NODE)
+	(predecessor-changed PREDECESSOR-NODE)
+	(left-network)
+
+data-hash
+
+	(define KEY LEASE-SECONDS) -> TOKEN-OR-NIL			*
+	(define* ((KEY . LEASE) ...)) -> ((KEY . TOKEN) ...)		*
+	(fetch KEY OBJECT TOKEN [TTL])					*
+	(-fetch-next KEY OBJECT TOKEN TTL)				*
+	(defined? KEY) -> BOOL						*
+
+	(relocate-data)
+	(garbage-collect)
+
+	Abstract:
+
+	(-key-address KEY) -> ADDR
+	(-key-defined? KEY) -> BOOL					*
+	(-key-import! KEY FILENAME)
+	(-key-export KEY (CALLBACK FILE))
+	(-key-delete! KEY)
+	(-key-foreach (CALLBACK KEY))
+	(-key-lease-set! KEY LEASE)
+	(-key-lease-ref KEY) -> LEASE					*
+
+
+Data Transfer Interface
+=======================
+
+	(transfer/send TOKEN INDEX DATA)				*
+	(transfer/end TOKEN WAS-SUCCESSFUL)				*
+	(transfer/send-file TOKEN FILENAME) -> BOOL			*
+	(transfer/filesystem-id) -> STRING				*
+
+The filesystem-id and send-file methods are used to avoid copying data
+over sockets when we can just copy in the filesystem. filesystem-id
+should return a base-36 hash key of a file that is unique to this
+system (currently using the ssh host key)
+
+
+Proxying
+========
+
+proxy-client class can be used as a replacement for consistent-hash
+
+proxy-server class appears to be a data-hash node, but it reflects all
+requests back to one of its clients
+

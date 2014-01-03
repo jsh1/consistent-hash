@@ -1,0 +1,458 @@
+2002-03-30  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/consistent-hash.jl: -notify-predecessor and
+	-notify-successor are now synchronous (need to give the called
+	object time to query us). successor method now caches the
+	result if it's one of our finger entries. Some fixes to how
+	-fix-successors works. Fixed the broadcast method (again)
+
+	* dfs/peer/chat.jl: cosmetic changes
+
+	* chat-node: support "/nick FOO" command
+
+	* dfs/common/rpc-proxy.jl (make-stub): changed the joined?
+	caching. It only caches the result for one second instead of
+	sixty now. Also return nil when a socket error happens
+
+2002-03-27  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/chat.jl: new module -- uses consistent hash nodes to
+	create an irc-like chat system
+
+	* chat-node: basic GTK+ chat frontend
+
+	* dfs/peer/consistent-hash.jl: fixed broadcast algorithm so
+	that it only invokes the method once on each node (really)
+
+	* dfs/common/rpc-hints.jl: new module, provides a function
+	define-rpc-method with which modules can describe their methods
+	for the rpc-proxy
+
+	* dfs/client/storage-layer.jl, dfs/common/transfer.jl,
+	dfs/common/rpc-proxy.jl, dfs/peer/proxy-server.jl,
+	dfs/peer/proxy-client.jl, dfs/peer/data-hash.jl,
+	dfs/peer/consistent-hash.jl: changes for rpc-hints
+
+	* dfs/peer/proxy-server.jl, dfs/peer/proxy-client.jl: minor
+	changes, support broadcasting, still untested
+
+2002-03-25  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/data-hash.jl: remember to relocate dirty items to
+	their primary nodes
+
+	* dfs/peer/persistent-data-hash.jl,
+	dfs/peer/local-data-hash.jl, dfs/peer/data-hash.jl
+	(-key-dirty-foreach): new method, walk the list of dirty keys
+
+	* dfs/peer/consistent-hash.jl (address->finger): new function
+	(unused as yet). Converts from an address to the finger table
+	entry storing the successor of that address, or false
+
+	* test-client: simple script for reading and writing files in
+	the dfs (using the reliability layer currently)
+
+2002-03-24  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/data-hash.jl: changed how we relocate data. On the
+	periodic update, only mirror our data to our successors. When
+	one of our successors changes, ask it to send us any data it
+	has that falls into the address range of things we should be
+	storing
+
+2002-03-24  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/persistent-data-hash.jl,
+	dfs/peer/local-data-hash.jl, dfs/peer/data-hash.jl,
+	dfs/client/storage-layer.jl: leases are now passed around as
+	absolute dates, not relative to the current time. (Since the
+	act of passing a value takes time, which means that the lease
+	may be extended marginally, which in turns may make for more
+	churn around the network..)
+
+	* dfs/peer/consistent-hash.jl: export between and distance
+	functions. Added responsibilities method that returns a pair,
+	the range of addresses we're responsible for storing
+
+	* dfs/common/util.jl: new module, includes random general
+	purpose functions used by the other modules
+
+2002-03-22  John Harper  <jsh@unfactored.org>
+
+	* dfs/common/rpc-proxy.jl (convert-arg-list): handle nested
+	conversion in broadcast and -broadcast-stage methods
+
+	* dfs/peer/persistent-data-hash.jl (self-test): copied some
+	code from local-data-hash.jl to make this actually succeed
+
+	* dfs/peer/consistent-hash.jl: added a `broadcast' method. Does
+	its job using a helper method `-broadcast-stage'. Takes log N
+	steps to broadcast a message around a ring with maximum N nodes
+
+2002-03-21  John Harper  <jsh@unfactored.org>
+
+	* dfs/common/transfer.jl: add support for optimizing file
+	transfers where sender and receiver share the same underlying
+	fs. In this case just send the name of the file. Currently
+	hashes the ssh host key to determine fs identity. Added two new
+	methods transfer/filesystem-id and transfer/send-file
+
+	* dfs/peer/persistent-data-hash.jl,
+	dfs/peer/local-data-hash.jl, dfs/peer/data-hash.jl,
+	dfs/client/storage-layer.jl, dfs/common/rpc-proxy.jl: 
+
+2002-03-21  John Harper  <jsh@unfactored.org>
+
+	Added some support for simple simulations:
+
+	* dfs/simulations/write.jl, dfs/simulations/read.jl,
+	dfs/simulations/lookup.jl, dfs/simulations/.cvsignore,
+	dfs/simulator/run.jl, dfs/simulator/object-profiler.jl,
+	dfs/simulator/node.jl, dfs/simulator/.cvsignore: 
+
+2002-03-12  John Harper  <jsh@pixelslut.com>
+
+	* dfs/peer/data-hash.jl: changed how `fetch' method deals with
+	lost data. If the current node is the one that's responsible
+	for the canonical copy of the data, but it doesn't have it,
+	walk through its first n successors looking for the data. If
+	found, cache it on the current node then copy it to the client
+	
+	This works pretty well, since the successors are both
+	responsible for the mirroring the data, and may have been the
+	previous owners of the data if the current owner just joined
+	the network.
+
+	Also added a similar time-to-live counter on the standard
+	'fetch' lookup algorithm, just to avoid cycles if the
+	'successor' method gets hosed somehow
+
+	* dfs/peer/consistent-hash.jl: turned off debugging mode by
+	default
+
+	* dfs/common/transfer.jl (transfer-failed): new exported
+	function
+	(transfer-finish): no longer exported
+
+	* dfs/common/rpc-proxy.jl: support -fetch-next method
+
+2002-02-28  John Harper  <jsh@pixelslut.com>
+
+	* dfs/peer/persistent-data-hash.jl,
+	dfs/peer/local-data-hash.jl, dfs/peer/data-hash.jl: 
+	* test-node, test-network, dfs-node: 
+
+	Modified object constructors so where useful they can take
+	either a ADDRESS or SUPER keyword argument to specify the
+	object they're derived from. This will be useful when using
+	proxies or perhaps a simulator. Updated all callers
+
+2002-02-20  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/persistent-data-hash.jl, dfs/peer/data-hash.jl:
+	moved the new garbage collector up to the data-hash class.
+	Added some new methods to allow this (-total-size,
+	-target-size, -key-size)
+
+	* run-tests: print something at the end if any tests failed,
+	it's too easy to overlook otherwise
+
+	* dfs/peer/local-data-hash.jl (self-test): need to call the
+	'periodically method to stabilize the network for this to work
+
+2002-02-17  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/data-hash.jl (predecessor-changed, left-network):
+	don't call relocate-data. Assume the successors will pick up
+	the slack (and in fact, all the data should already be in the
+	right places anyway, due to the mirroring scheme)
+
+	* dfs/peer/persistent-data-hash.jl (garbage-collect):
+	unconditionally delete all expired items (i.e. they don't go
+	into the collectable list or affect the disk-space
+	calculations)
+
+2002-02-16  John Harper  <jsh@unfactored.org>
+
+	* dfs/common/transfer.jl (token-lifetime): increased from 5 to
+	30 minutes
+
+	* dfs-node: new argument --size=MEGABYTES. Also, if no
+	--address is given, randomly assign one
+
+	* test-network: script to run a number of nodes and link them
+	together
+
+	* dfs/peer/data-hash.jl: rewrote the -relocate-key method. If
+	the address of the datum maps to the node, mirror the datum to
+	our known successors. Else, send it to the node it maps to
+
+	* dfs/peer/persistent-data-hash.jl: override the
+	garbage-collect method of the super class. The constructor now
+	has a parameter TARGET-SIZE, the amount of disk space it should
+	try to use (though it may use more, it just garbage collects
+	down to this size). So this makes the caching a lot more
+	aggressive (since cached data isn't always thrown away at the
+	next gc). gc randomly deletes collectable items until it gets
+	within the size limit
+
+	* dfs/peer/data-hash.jl: new method define*, like define, but
+	allows multiple keys to be passed at once to reduce latency
+
+	* dfs/peer/consistent-hash.jl: record the N next successors of
+	the node, not just the first (N=3 currently). Added a new
+	method foreach-known-successor to access this information.
+	Rewrote how stabilization works, to update this state
+
+	* dfs/peer/data-hash.jl: new optional abstract methods:
+	-key-retain, -key-release, -key-retained?. They're used to mark
+	which datums shouldn't be garbage collected (because they're
+	still needed for some reason)
+
+2002-01-17  John Harper  <jsh@unfactored.org>
+
+	* dfs-proxy, dfs/peer/proxy-server.jl,
+	dfs/peer/proxy-client.jl: New untested files. They implement a
+	proxying method such that hosts behind firewalls can join the
+	consistent hash network (the proxy joins on their behalf, and
+	relays all rpc calls)
+
+	* dfs/peer/consistent-hash.jl: minor changes, export a
+	consistent-hash-public-methods list
+
+	* dfs/common/rpc-proxy.jl: support for node proxying, better
+	debugging, fixed joined? caching
+
+2001-12-20  John Harper  <jsh@unfactored.org>
+
+	* dfs/peer/consistent-hash.jl (join, leave): now return a
+	boolean
+
+	* dfs/common/rpc-proxy.jl: any methods which don't return
+	results are now called asynchronously. Memoize the result of
+	the `joined?' method, so that it's called a maximum of once a
+	minute
+
+	* dfs/client/storage-layer.jl, dfs/peer/data-hash.jl: allow for
+	the `fetch' method being called asynchronously
+
+	* dfs-node: just write the rpc id to stdout, nothing else
+
+	* dfs/peer/persistent-data-hash.jl (quote-key): implemented
+	this for security
+
+2001-12-19  John Harper  <jsh@unfactored.org>
+
+	* dfs-node: create the --root directory if it doesn't exist
+
+	* dfs/peer/persistent-data-hash.jl: don't store files
+	hierarchically off their first characters, since all keys may
+	have the same prefix. Instead hash the key to an integer, then
+	use a subdirectory whose name is that integer (mod n).
+	Currently n = 16
+
+	* dfs/peer/data-hash.jl: added debugging code to periodically
+	print the list of resident keys (-print-keys method). Fixed a
+	bug where `define' could return #undefined if the key already
+	exists on a remote node
+
+	* dfs/client/reliability-layer.jl: removed the
+	#:data-file/string thing I'd forgotten to before. Fixed some
+	bugs
+
+2001-12-13  John Harper  <jsh@unfactored.org>
+
+	* test-node, run-tests, mkinstalldirs,
+	linear-consistent-hash.jl, install-sh, dfs-node, configure.in,
+	autogen.sh, TREE, Makefile.in, Makefile, .cvsignore: 
+
+	* dfs/client/storage-layer.jl, dfs/client/reliability-layer.jl,
+	dfs/client/.cvsignore: 
+
+	* dfs/common/transfer.jl, dfs/common/rpc-proxy.jl,
+	dfs/common/.cvsignore: 
+
+	* dfs/peer/persistent-data-hash.jl,
+	dfs/peer/local-data-hash.jl, dfs/peer/data-hash.jl,
+	dfs/peer/consistent-hash.jl, dfs/peer/.cvsignore: 
+
+	Rearranged this module so that it's configurable, installable,
+	etc.. (needs a cvs librep for now)
+
+2001-12-12  John Harper  <jsh@unfactored.org>
+
+	* transfer.jl: added code to expire tokens after five minutes
+	(should make it five minutes of inactivity, not five minutes
+	after being created?)
+
+2001-12-11  John Harper  <jsh@unfactored.org>
+
+	* transfer.jl, storage-layer.jl, rpc-proxy.jl,
+	reliability-layer.jl, persistent-data-hash.jl,
+	local-data-hash.jl, data-hash.jl, NOTES:
+
+	Too many changes to list individually. Made it so that all data
+	transfers are done in blocks, not all at once. This means that
+	the client of the peer needs to create an rpc object, but it
+	does it in such a way that it will still work across a
+	firewall. Peers themselves do need to have globally-valid ips
+	for now though (until we design some kind of proxy)
+
+	Also changed how transfers happen. Strategy is now to use the
+	peer that the client is talking to as a staging area for all
+	transfers, like a cache. Needs some logic to handle low-disk
+	situations (will need to run the relocater / garbage collector)
+
+	Finally, also changed the API to get rid of all the #:data-file
+	and #:data-string stuff. All public APIs now use files
+	exclusively to simplify the internals (and it turned out that
+	for most uses, the string variants weren't able to be used)
+
+2001-11-25  John Harper  <jsh@unfactored.org>
+
+	* reliability-layer.jl: many changes to make this actually
+	work. yay!
+
+	* storage-layer.jl (storage-layer/fetch): remember to pass the
+	KEY to the callback function
+
+	* consistent-hash.jl (-debug): escape all control codes when
+	printing debug spew
+
+2001-11-20  John Harper  <jsh@unfactored.org>
+
+	* reliability-layer.jl: wrote the reading part of the fec
+	usage. Still totally untested..
+
+2001-11-19  John Harper  <jsh@unfactored.org>
+
+	* reliability-layer.jl: first attempt at using the FEC
+	implementation. Only writes so far. Not at all tested..
+
+	* storage-layer.jl (storage-layer/fetch): only call the
+	callback if the data actually exists..
+
+	* storage-layer.jl: don't signal an error if $SERVER_RPC_GID
+	isn't set until we actually need it (to let compilation work)
+
+	* storage-layer.jl (storage-layer/define, storage-layer/fetch):
+	signal an error if a list of keys isn't given
+
+2001-11-18  John Harper  <jsh@unfactored.org>
+
+	* test-node: look for $SERVER_RPC_ID if no --sibling arg.
+	storage-layer also looks for this environment variable
+
+	* storage-layer.jl: new module. A client side interface to the
+	data-hash layer
+
+	* transfer.jl: new module. Will be used to implement more
+	scalable data transfer (instead of sending everything as a
+	single string)
+
+2001-10-19  John Harper  <jsh@unfactored.org>
+
+	* data-hash.jl, local-data-hash.jl (-key-foreach): this method
+	only passes one argument to the iterator function, the name of
+	the key (instead of key and value). This is so it can be more
+	efficient when the values are large and/or slow to fetch
+
+	* persistent-data-hash.jl: new module. Implements a data-hash
+	object, but using the file system so that all data and leases
+	stored persist across the object's lifetime
+
+	* run-tests: added persistent-data-hash
+
+2001-09-08  John Harper  <jsh@pixelslut.com>
+
+	* consistent-hash.jl: in predecessor method keep track of all
+	nodes visited so far. Use this information to break cycles
+
+2001-09-01  John Harper  <jsh@pixelslut.com>
+
+	* consistent-hash.jl: work to make the -stabilize method detect
+	nodes that fell out of the network without removing themselves
+	cleanly, i.e. successor or predecessor pointers left pointing
+	to non-existant nodes. This seems to work reasonably well
+
+2001-09-01  John Harper  <jsh@pixelslut.com>
+
+	* rpc-proxy.jl (make-stub): some attempt to handle I/O errors.
+	If a socket breaks, always return false from the `joined?'
+	method (so the higher layers know to forget about the node),
+	and return false from all other methods (except for `address' -
+	we cache the address of the node when the stub is created)
+
+	The `returns false' thing isn't ideal, since the upper layers
+	don't always expect it. It's definitely an improvement though
+
+	* rpc-proxy.jl: stubs now ignore results from methods that
+	don't return a result (to avoid demarshalling errors from
+	values returned implicitly)
+
+	* consistent-hash.jl: in -fix-fingers method, remove any nodes
+	that have left the network
+
+2001-08-31  John Harper  <jsh@pixelslut.com>
+
+	* test-node, rpc-proxy.jl: fixed so that the remote operation
+	actually works. (Though when I left it running for a while one
+	of the nodes hung after some time)
+
+2001-08-30  John Harper  <jsh@pixelslut.com>
+
+	* test-node: test program for rpc
+
+	* rpc-proxy.jl: new module, wraps hash objects for transparent
+	rpc (doesn't quite work yet)
+
+	* local-data-hash.jl: fixed typo in export clause
+
+2001-08-27  John Harper  <jsh@pixelslut.com>
+
+	* consistent-hash.jl: added some comments, removed unused
+	INCLUSIVE option to `between' and `distance' functions
+
+	* run-tests: a script to run the self tests of our modules
+
+	* Makefile: added, currently has targets `all', `check' and
+	`clean'
+
+	* local-data-hash.jl: fixed name of tests
+
+2001-08-23  John Harper  <jsh@pixelslut.com>
+
+	* NOTES: new file, lists methods and their parameters
+
+	* data-hash.jl: small changes
+
+2001-08-21  John Harper  <jsh@pixelslut.com>
+
+	* consistent-hash.jl: on join, search for successor and
+	predecessor nodes, to give the network a better chance of being
+	consistent after each node joins (excepting concurrency issues,
+	which stabilization will address)
+
+	* data-hash.jl: implement garbage collection and data
+	relocation here. Also do explicit lease management at this
+	level now
+
+	* local-data-hash.jl: simiplified methods, with separate
+	lease-control. Rewrote test cases
+
+	(All test cases pass now)
+
+2001-08-20  John Harper  <jsh@pixelslut.com>
+
+	* consistent-hash.jl: misc changes
+
+	* local-data-hash.jl, data-hash.jl: implement a lease-based
+	resource allocation scheme
+
+	* .cvsignore: added
+
+2001-08-18  John Harper  <jsh@pixelslut.com>
+
+	* local-data-hash.jl, data-hash.jl, consistent-hash.jl: split
+	into three classes
+

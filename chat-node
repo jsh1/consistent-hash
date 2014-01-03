@@ -1,0 +1,117 @@
+#!/bin/sh
+exec rep "$0" "$@"
+!#
+
+(structure ()
+
+    (open rep
+	  rep.system
+	  rep.regexp
+	  rep.io.timers
+	  rep.io.files
+	  rep.net.rpc
+	  rep.data.objects
+	  dfs.peer.chat
+	  dfs.common.rpc-proxy
+	  gui.gtk.gtk)
+
+  (when (get-command-line-option "--help")
+    (write standard-error "\
+usage: chat-node OPTIONS...
+
+where OPTIONS are any of:
+
+    --address NUMERIC-ADDRESS
+    --sibling RPC-ID
+    --nick NICKNAME
+
+    --update SECONDS
+    --verbose\n\n")
+    (throw 'quit 0))
+
+  (random t)
+
+  (define address (let ((address (get-command-line-option "--address" t)))
+		    (if address
+			(string->number address)
+		      (random 65536))))
+
+  (define sibling (let ((id (or (get-command-line-option "--sibling" t)
+				(getenv "SERVER_RPC_ID"))))
+		    (and id (rpc-id->hash-object id))))
+
+  (define nick (get-command-line-option "--nick" t))
+
+  (define update-interval (let ((tem (get-command-line-option "--update" t)))
+			    (or (and tem (string->number tem)) 60)))
+
+  ;; listen for rpc connections
+  (rpc-create-server)
+
+  (define self)
+
+  (let ((window (gtk-window-new 'toplevel))
+	(box (gtk-vbox-new nil 2))
+	(entry (gtk-entry-new))
+	(text (gtk-text-new)))
+
+    (define (output string)
+      (gtk-text-insert text nil nil nil string (length string)))
+
+    (gtk-box-pack-end box entry)
+    (gtk-container-add box text)
+    (gtk-container-add window box)
+
+    (gtk-signal-connect
+     entry "key_press_event"
+     (lambda (w event)
+       (declare (unused w))
+       (when (string= (gdk-event-string event) "\r")
+	 ;; RET
+	 (let ((in (gtk-entry-get-text entry)))
+	   (cond ((string-looking-at "/nick (\\S+)" in)
+		  (self 'nick-set! (expand-last-match "\\1")))
+		 (t (self 'say in))))
+	 (gtk-entry-set-text entry ""))))
+
+    (gtk-signal-connect window "delete_event"
+			(lambda () (throw 'quit 0)))
+
+    (gtk-widget-show-all window)
+
+    ;; Create our object
+    (setq self (object (make-chat-node #:address address #:nick nick)
+		 ((output fmt . args)
+		  (output (apply format nil fmt args))))))
+
+  ;; Make it's rpc servant
+  (define servant-id (hash-object->rpc-id self))
+
+  (when (get-command-line-option "--verbose")
+    (self '-set-debugging t))
+
+  ;; Print our rpc id
+  (format standard-output "%s\n"
+	  (if (symbolp servant-id)
+	      (servant-id->global-id servant-id)
+	    ;; assume already global
+	    servant-id))
+  (flush-file standard-output)
+
+  ;; Connect to the network (or start a new one if SIBLING is false)
+  (self 'join sibling)
+
+  ;; Arrange for the periodic operations to happen once a minute
+  (make-timer (lambda (timer)
+		(self 'periodically)
+		(set-timer timer))
+	      update-interval)
+
+  ;; And make sure we clean up on exit when possible
+  (add-hook 'before-exit-hook
+	    (lambda ()
+	      (self 'leave)))
+
+  ;; Then hand off to the event loop
+  (setq interrupt-mode 'exit)
+  (recursive-edit))

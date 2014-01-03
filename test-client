@@ -1,0 +1,44 @@
+#!/bin/sh
+exec rep "$0" "$@"
+!#
+
+;; usage: test-client OPTION... COMMAND...
+
+;; where OPTION is one of:
+
+;;	-server=RPC-ID
+
+;; and COMMAND is one of:
+
+;;	-import KEY FILE
+;;	-export KEY FILE
+
+;; these both use the reliability layer.
+
+(structure ()
+
+    (open rep
+	  rep.io.files
+	  rep.system
+	  dfs.client.reliability-layer)
+
+  (let ((rpc-id (get-command-line-option "--server" t)))
+    (setenv "SERVER_RPC_ID" rpc-id))
+
+  (while command-line-args
+    (cond ((string= (car command-line-args) "-import")
+	   (reliability-layer/define
+	    (list (cadr command-line-args)) 3600
+	    (lambda ()
+	      (caddr command-line-args)))
+	   (setq command-line-args (cdddr command-line-args)))
+
+	  ((string= (car command-line-args) "-export")
+	   (reliability-layer/fetch
+	    (list (cadr command-line-args))
+	    (lambda (key filename)
+	      (declare (unused key))
+	      (copy-file filename (caddr command-line-args))))
+	   (setq command-line-args (cdddr command-line-args)))
+
+	  (t (error "Unknown command: %s" (car command-line-args))))))

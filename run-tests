@@ -1,0 +1,30 @@
+#!/bin/sh
+exec rep "$0" "$@"
+!#
+
+(structure ()
+
+    (open rep
+	  rep.test.framework
+	  dfs.peer.consistent-hash
+	  dfs.peer.local-data-hash
+	  dfs.peer.persistent-data-hash)
+
+  (define tests-failed nil)
+
+  (define (run-1 module)
+    (let ((failures (run-module-self-tests module)))
+      (unless (= failures 0)
+	(format standard-error "\nModule %s had %d failed %s\n\n"
+		module failures (if (= failures 1) "test" "tests"))
+	(setq tests-failed t))))
+
+  (run-1 'dfs.peer.consistent-hash)
+  (run-1 'dfs.peer.local-data-hash)
+  (run-1 'dfs.peer.persistent-data-hash)
+
+  (if tests-failed
+      (write standard-error "\n** Tests failed. **\n\n")
+    (write standard-error "\nAll tests passed.\n\n"))
+
+  (throw 'quit (if tests-failed 1 0)))

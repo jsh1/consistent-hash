@@ -1,0 +1,59 @@
+
+version=@version@
+host_type=@host@
+SHELL=/bin/sh
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+datadir=@datadir@
+bindir=@bindir@
+includedir=@includedir@
+infodir=@infodir@
+libdir=@libdir@
+libexecdir=@libexecdir@
+localstatedir=@localstatedir@
+mandir=@mandir@
+sharedstatedir=@sharedstatedir@
+aclocaldir=@aclocaldir@
+lispdir=@lispdir@
+
+CC=@CC@
+CPPFLAGS=@CPPFLAGS@
+CFLAGS=@CFLAGS@
+LDFLAGS=@LDFLAGS@
+override CPPFLAGS += -DHAVE_CONFIG_H -I.
+override CFLAGS += @REP_CFLAGS@
+LIBS=@REP_LIBS@ @LIBS@
+MAKEDEP=@MAKEDEP@
+
+INSTALL=@INSTALL@
+INSTALL_DATA=@INSTALL_DATA@
+INSTALL_PROGRAM=@INSTALL_PROGRAM@
+INSTALL_SCRIPT=@INSTALL_SCRIPT@
+
+DESTDIR=
+installdir=$(repexecdir)
+
+top_srcdir=@top_srcdir@
+top_builddir=.
+VPATH=@top_srcdir@:.
+
+.PHONY: all clean realclean install
+
+all :
+	rep compiler -f compile-lib-batch dfs
+
+check :
+	./run-tests
+
+install : installdirs
+	rm -rf "$(DESTDIR)$(lispdir)/dfs"
+	cp -r dfs "$(DESTDIR)$(lispdir)/dfs"
+	$(INSTALL_SCRIPT) dfs-node "$(DESTDIR)$(bindir)/dfs-node"
+
+installdirs : $(top_srcdir)/mkinstalldirs
+	$(SHELL) $(top_srcdir)/mkinstalldirs "$(DESTDIR)$(bindir)" "$(DESTDIR)$(lispdir)"
+
+clean :
+	find . \( -name '*.jlc' -o -name '*~' -o -name core \) -print | xargs rm -f
+
